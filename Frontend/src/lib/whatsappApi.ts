@@ -1,5 +1,5 @@
 import axios from "axios";
-const API_URL = "http://localhost:4000/api/whatsapp";
+const API_URL = "https://real-crm-backend-1.onrender.com/api/whatsapp";
 
 export const getTemplates = () => axios.get(`${API_URL}/templates`);
 export const sendTemplate = (payload: any) => axios.post(`${API_URL}/send`, payload);
