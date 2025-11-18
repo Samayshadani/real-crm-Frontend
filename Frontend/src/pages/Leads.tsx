@@ -199,7 +199,7 @@ export default function Leads() {
         const whatsappLeads = await getWhatsappLeads();
         if (Array.isArray(whatsappLeads)) {
           whatsappLeadsNormalized = whatsappLeads.map((contact) => ({
-            id: contact._id,
+            id: contact.id,
             name: contact.name,
             contact: contact.whatsappId,
             email: "",
