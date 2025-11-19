@@ -14,15 +14,17 @@ export default function Login() {
   const { login } = useUser();
   const navigate = useNavigate();
 
-  function handleChange(e: any) {
+  function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  function handleSubmit(e: any) {
+  function handleSubmit(e) {
     e.preventDefault();
-    const user = users.find(u => u.username === form.username && u.password === form.password);
+    const user = users.find(
+      (u) => u.username === form.username && u.password === form.password
+    );
     if (user) {
-      login(user);
+      login(user); // user context must persist role and displayName!
       navigate("/leads");
     } else {
       setError("Invalid username or password");
