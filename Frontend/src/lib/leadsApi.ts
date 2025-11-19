@@ -15,7 +15,7 @@ export async function addBulkLeads(formData: FormData) {
   const res = await fetch(`${API_BASE}/import`, {
     method: "POST",
     body: formData,
-  });
+  }); 
   if (!res.ok) throw new Error("Bulk import failed");
 }
 
