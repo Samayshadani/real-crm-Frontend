@@ -64,16 +64,20 @@ export type Lead = {
   createdAt?: string;
 };
 
+// A more robust way to check for overdue dates, avoiding timezone issues
 function isOverdue(followUp?: string) {
   if (!followUp) return false;
   try {
     const fDate = new Date(followUp);
-    const today = new Date(new Date().toISOString().slice(0, 10));
+    fDate.setHours(0, 0, 0, 0); // Normalize to the beginning of the day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to the beginning of today
     return fDate < today;
   } catch {
     return false;
   }
 }
+
 function statusClass(status: string) {
   switch (status) {
     case "new": return "bg-blue-100 text-blue-800";
@@ -165,7 +169,7 @@ export default function Leads() {
             createdAt: contact.createdAt,
           }));
         }
-      } catch (waErr) {}
+      } catch (waErr) { }
 
       let mergedLeads = [...regularLeads, ...whatsappLeadsNormalized];
       if (user?.role === "agent") {
@@ -393,21 +397,21 @@ export default function Leads() {
             <div className="text-center py-6 text-muted-foreground">No leads found</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[730px]">
+              <table className="w-full table-fixed text-sm">
                 <thead>
                   <tr className="border-b whitespace-nowrap">
-                    <th className="text-left py-2 px-2 font-medium">Name</th>
-                    <th className="text-left py-2 px-2 font-medium">Contact</th>
-                    <th className="text-left py-2 px-2 font-medium">Email</th>
-                    <th className="text-left py-2 px-2 font-medium">Source</th>
-                    <th className="text-left py-2 px-2 font-medium">Status</th>
-                    <th className="text-left py-2 px-2 font-medium">Assigned</th>
-                    <th className="text-left py-2 px-2 font-medium">Follow-up</th>
-                    <th className="text-left py-2 px-2 font-medium">Created</th>
-                    <th className="text-left py-2 px-2 font-medium">Last Msg</th>
-                    <th className="text-left py-2 px-2 font-medium">Dup</th>
-                    <th className="text-left py-2 px-2 font-medium">Tags</th>
-                    <th className="text-left py-2 px-2 font-medium">Actions</th>
+                    <th className="text-left py-2 px-2 font-medium w-[150px]">Name</th>
+                    <th className="text-left py-2 px-2 font-medium w-[130px]">Contact</th>
+                    <th className="text-left py-2 px-2 font-medium w-[150px]">Email</th>
+                    <th className="text-left py-2 px-2 font-medium w-[90px]">Source</th>
+                    <th className="text-left py-2 px-2 font-medium w-[100px]">Status</th>
+                    <th className="text-left py-2 px-2 font-medium w-[110px]">Assigned</th>
+                    <th className="text-left py-2 px-2 font-medium w-[110px]">Follow-up</th>
+                    <th className="text-left py-2 px-2 font-medium w-[130px]">Created</th>
+                    <th className="text-left py-2 px-2 font-medium w-[120px]">Last Msg</th>
+                    <th className="text-left py-2 px-2 font-medium w-[50px]">Dup</th>
+                    <th className="text-left py-2 px-2 font-medium w-[100px]">Tags</th>
+                    <th className="text-left py-2 px-2 font-medium w-[210px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -417,16 +421,15 @@ export default function Leads() {
                       className={`border-b hover:bg-muted/50 transition ${lead.duplicateInfo?.isDuplicate ? "bg-yellow-50" : ""}`}
                     >
                       <td className="py-2 px-2">
-                        <div className="font-medium truncate max-w-[130px]">{lead.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">{lead.email}</div>
+                        <div className="font-medium truncate">{lead.name}</div>
                       </td>
                       <td className="py-2 px-2">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                           <span className="text-xs">{lead.contact || "-"}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground">{lead.email || "-"}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground truncate">{lead.email || "-"}</td>
                       <td className="py-2 px-2">
                         <Badge
                           variant={
@@ -442,14 +445,14 @@ export default function Leads() {
                         </Badge>
                       </td>
                       <td className="py-2 px-2">
-                        <Badge className={statusClass(lead.status)}>
+                        <Badge className={`${statusClass(lead.status)} capitalize`}>
                           {lead.status ? lead.status.replace("-", " ") : "-"}
                         </Badge>
                       </td>
-                      <td className="py-2 px-2 text-xs">{lead.assignedTo || "-"}</td>
+                      <td className="py-2 px-2 text-xs truncate">{lead.assignedTo || "-"}</td>
                       <td className="py-2 px-2 text-xs">
                         <span className={isOverdue(lead.followUp) ? "text-red-600 font-bold" : ""}>
-                          {lead.followUp || "-"}
+                          {lead.followUp ? new Date(lead.followUp).toLocaleDateString() : "-"}
                         </span>
                         {isOverdue(lead.followUp) && (
                           <AlertCircle
@@ -459,19 +462,19 @@ export default function Leads() {
                           />
                         )}
                       </td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground max-w-[120px] truncate">
+                      <td className="py-2 px-2 text-xs text-muted-foreground truncate">
                         {lead.createdAt
                           ? new Date(lead.createdAt).toLocaleString()
                           : lead.metaData?.createdAt
                             ? new Date(lead.metaData.createdAt).toLocaleString()
                             : "-"}
                       </td>
-                      <td className="py-2 px-2 text-xs text-blue-700 max-w-[110px] truncate">
+                      <td className="py-2 px-2 text-xs text-blue-700 truncate">
                         {lead.source === "WhatsApp" && lead.metaData?.lastMessage
                           ? lead.metaData.lastMessage
                           : "-"}
                       </td>
-                      <td className="py-2 px-2 text-xs">
+                      <td className="py-2 px-2 text-xs text-center">
                         {lead.duplicateInfo?.isDuplicate ? (
                           <Button
                             size="icon"
@@ -479,18 +482,18 @@ export default function Leads() {
                             onClick={() => setDuplicateAlertLead(lead)}
                             title={`${lead.duplicateInfo.duplicateCount} duplicates`}
                             disabled={loading}
-                            className="p-1"
+                            className="p-1 h-6 w-6"
                           >
                             <span className="font-semibold text-yellow-700">{lead.duplicateInfo.duplicateCount}</span>
                           </Button>
                         ) : <span>-</span>}
                       </td>
-                      <td className="py-2 px-2 text-xs max-w-[90px] truncate">
+                      <td className="py-2 px-2 text-xs truncate">
                         {lead.tags && Array.isArray(lead.tags) && lead.tags.length > 0 ? (
                           lead.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="inline-block bg-blue-100 text-blue-700 rounded px-1 mr-0.5 text-xs"
+                              className="inline-block bg-blue-100 text-blue-700 rounded px-1.5 mr-1 text-xs"
                             >
                               {tag}
                             </span>
@@ -501,35 +504,35 @@ export default function Leads() {
                       </td>
                       <td className="py-2 px-2">
                         <div className="flex flex-row flex-wrap gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => openEditModal(lead)} disabled={loading} title="Edit" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEditModal(lead)} disabled={loading} title="Edit" className="p-1 h-6 w-6">
                             <CheckCircle className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => handleDeleteLead(lead.id as number)} disabled={loading} title="Delete" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => handleDeleteLead(lead.id as number)} disabled={loading} title="Delete" className="p-1 h-6 w-6">
                             <XCircle className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => setWAModalLead(lead)} disabled={loading} title="Send WhatsApp" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => setWAModalLead(lead)} disabled={loading} title="Send WhatsApp" className="p-1 h-6 w-6">
                             <MessageCircle className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => copyToClipboard(lead.contact)} disabled={loading} title="Copy Contact" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => copyToClipboard(lead.contact)} disabled={loading} title="Copy Contact" className="p-1 h-6 w-6">
                             <Copy className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => setAssignLead(lead)} disabled={loading} title="Assign" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => setAssignLead(lead)} disabled={loading} title="Assign" className="p-1 h-6 w-6">
                             <Users className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => setFollowUpLead(lead)} disabled={loading} title="Follow-Up" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => setFollowUpLead(lead)} disabled={loading} title="Follow-Up" className="p-1 h-6 w-6">
                             <Calendar className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => handleCloseLead(lead)} disabled={loading} title="Close" className="p-1">
+                          <Button size="icon" variant="ghost" onClick={() => handleCloseLead(lead)} disabled={loading} title="Close" className="p-1 h-6 w-6">
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                           {lead.duplicateInfo?.isDuplicate && (
                             <Button
-                              size="icon"
+                              size="sm"
                               variant="outline"
                               onClick={() => openMergeModal(lead)}
                               disabled={loading}
                               title="Merge Duplicates"
-                              className="p-1"
+                              className="p-1 h-6 text-xs"
                             >
                               Merge
                             </Button>
