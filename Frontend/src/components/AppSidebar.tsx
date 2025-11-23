@@ -33,7 +33,7 @@ export function AppSidebar() {
       <SidebarContent>
         <div className="px-6 py-4">
           <h1 className={`font-bold text-primary transition-all ${isCollapsed ? "text-center text-xl" : "text-2xl"}`}>
-            {isCollapsed ? "RE" : "RealEstate CRM"}
+            {isCollapsed ? "LC" : "Lead Capture"}
           </h1>
         </div>
         
