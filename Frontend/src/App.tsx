@@ -23,7 +23,7 @@ function PrivateRoute({ children }: { children: JSX.Element }) {
   const { user } = useUser();
   return user ? children : <Navigate to="/login" replace />;
 }
-
+ 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <UserProvider>
