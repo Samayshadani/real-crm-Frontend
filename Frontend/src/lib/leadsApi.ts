@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_BASE = "https://real-crm-backend-4.onrender.com/api/leads";
-const CONTACTS_BASE = "https://real-crm-backend-4.onrender.com/api/contacts";
+const API_BASE = "https://real-crm-backend-5.onrender.com/api/leads";
+const CONTACTS_BASE = "https://real-crm-backend-5.onrender.com/api/contacts";
 
 // --- Lead CRUD ---
 export const getLeads = (config?: any) => axios.get(API_BASE, config);

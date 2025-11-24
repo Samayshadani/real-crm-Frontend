@@ -1,5 +1,5 @@
 import axios from "axios";
-const API_URL = "https://real-crm-backend-4.onrender.com/api/duplicates";
+const API_URL = "https://real-crm-backend-5.onrender.com/api/duplicates";
 
 export const getDuplicateGroups = () => axios.get(API_URL);
 export const getDuplicateInfo = (leadId: number) => axios.get(`${API_URL}/${leadId}`);
