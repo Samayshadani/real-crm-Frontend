@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,6 @@ import {
   AlertCircle,
   MessageCircle,
   Copy,
-  Users,
   Calendar,
   CheckCircle,
   XCircle,
@@ -36,15 +36,10 @@ import WhatsAppTemplateModal from "@/components/WhatsAppTemplateModal";
 import DuplicateAlert from "@/components/DuplicateAlert";
 import MergeDuplicatesModal from "@/components/MergeDuplicatesModal";
 import BulkImportModal from "@/components/BulkImportModal";
-import AssignLeadModal from "@/components/AssignLeadModal";
-import FollowupModal from "@/components/FollowupModal";
 import { useUser } from "../lib/UserContext";
 
 const statusOptions = [
   "new", "contacted", "site-visit", "negotiation", "converted", "lost",
-];
-const userOptions = [
-  "Rajesh Kumar", "Priya Sharma", "Amit Patel", "Sneha Reddy", "Vikram Singh",
 ];
 const tagOptions = ["hot", "priority", "followup", "test"];
 
@@ -57,23 +52,60 @@ export type Lead = {
   status: string;
   assignedTo: string;
   followUp: string;
-  tags?: string[] | string;
+  tags?: string[];
   customFields?: { [key: string]: any };
   duplicateInfo?: { isDuplicate: boolean; duplicateCount: number };
   metaData?: any;
   createdAt?: string;
 };
 
-function isOverdue(followUp?: string) {
-  if (!followUp) return false;
+function formatFollowUp(followUp?: string) {
+  if (!followUp || followUp.trim() === "") return "-";
   try {
-    const fDate = new Date(followUp);
-    const today = new Date(new Date().toISOString().slice(0, 10));
-    return fDate < today;
+    // If it's just a date string like "2025-11-19" (no time part)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(followUp.trim())) {
+      const [year, month, day] = followUp.trim().split("-").map(Number);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${String(day).padStart(2,"0")} ${months[month - 1]} ${year}`;
+    }
+    // If it has a time part like "2025-11-19T09:00:00"
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(followUp.trim())) {
+      const [datePart, timePart] = followUp.trim().split("T");
+      const [year, month, day] = datePart.split("-").map(Number);
+      const [hour, minute] = timePart.split(":").map(Number);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const h12 = hour % 12 === 0 ? 12 : hour % 12;
+      const ampm = hour < 12 ? "am" : "pm";
+      return `${String(day).padStart(2,"0")} ${months[month - 1]} ${year}, ${String(h12).padStart(2,"0")}:${String(minute).padStart(2,"0")} ${ampm}`;
+    }
+    // Fallback: try native Date parse
+    const d = new Date(followUp);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString("en-IN", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+      });
+    }
+    return followUp;
+  } catch {
+    return followUp;
+  }
+}
+
+function isOverdue(followUp?: string) {
+  if (!followUp || followUp.trim() === "") return false;
+  try {
+    // For date-only strings, compare date parts directly to avoid timezone issues
+    if (/^\d{4}-\d{2}-\d{2}$/.test(followUp.trim())) {
+      const today = new Date().toISOString().slice(0, 10);
+      return followUp.trim() < today;
+    }
+    return new Date(followUp) < new Date();
   } catch {
     return false;
   }
 }
+
 function statusClass(status: string) {
   switch (status) {
     case "new": return "bg-blue-100 text-blue-800";
@@ -85,6 +117,7 @@ function statusClass(status: string) {
     default: return "bg-gray-100 text-gray-800";
   }
 }
+
 function addDuplicateInfo(leadsData: any): Lead[] {
   if (!Array.isArray(leadsData)) return [];
   return leadsData.map((lead) => {
@@ -112,6 +145,94 @@ function addDuplicateInfo(leadsData: any): Lead[] {
   });
 }
 
+// Inline Follow-up Modal with date + time
+function FollowUpInlineModal({
+  lead,
+  onClose,
+  onSchedule,
+}: {
+  lead: Lead;
+  onClose: () => void;
+  onSchedule: (lead: Lead) => void;
+}) {
+  // Parse existing followUp into date and time parts
+  const existingDate = lead.followUp ? lead.followUp.slice(0, 10) : "";
+  const existingTime = lead.followUp && lead.followUp.length > 10
+    ? new Date(lead.followUp).toTimeString().slice(0, 5)
+    : "09:00";
+
+  const [date, setDate] = useState(existingDate);
+  const [time, setTime] = useState(existingTime);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSave() {
+    if (!date) { setError("Please select a date."); return; }
+    // Combine date + time into ISO-like string
+    const combined = `${date}T${time}:00`;
+    onSchedule({ ...lead, followUp: combined });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-[340px]">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-blue-600" />
+          Schedule Follow-up
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Lead: <span className="font-medium text-gray-800">{lead.name}</span>
+        </p>
+
+        {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+
+        <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Date *</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => { setDate(e.target.value); setError(null); }}
+          className="border rounded px-3 py-2 w-full text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          min={new Date().toISOString().slice(0, 10)}
+        />
+
+        <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Time *</label>
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className="border rounded px-3 py-2 w-full text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <p className="text-xs text-muted-foreground mb-5">Select the time you want to follow up with this lead.</p>
+
+        {date && (
+          <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-4 text-xs text-blue-700">
+            📅 Scheduled for: <span className="font-semibold">
+              {new Date(`${date}T${time}:00`).toLocaleString("en-IN", {
+                day: "2-digit", month: "short", year: "numeric",
+                hour: "2-digit", minute: "2-digit", hour12: true,
+              })}
+            </span>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition"
+          >
+            Save Follow-up
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded text-sm transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Leads() {
   const { user, logout } = useUser();
 
@@ -120,7 +241,6 @@ export default function Leads() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [assignedTo, setAssignedTo] = useState("all");
   const [selectedTag, setSelectedTag] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [modalLead, setModalLead] = useState<Lead | null>(null);
@@ -128,54 +248,54 @@ export default function Leads() {
   const [showDuplicateFilter, setShowDuplicateFilter] = useState(false);
   const [quickAdd, setQuickAdd] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
-  const [assignLead, setAssignLead] = useState<Lead | null>(null);
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
   const [duplicateAlertLead, setDuplicateAlertLead] = useState<Lead | null>(null);
   const [mergeModal, setMergeModal] = useState<{ primary: Lead | null; duplicates: Lead[] }>({ primary: null, duplicates: [] });
   const [showWhatsappOnly, setShowWhatsappOnly] = useState(false);
 
-  useEffect(() => { fetchLeads(); }, [statusFilter, search, assignedTo, selectedTag, user]);
+  useEffect(() => { fetchLeads(); }, [statusFilter, search, selectedTag, user]);
 
   async function fetchLeads() {
     setLoading(true);
-    let params = {};
+    const params: any = {};
     if (statusFilter !== "all") params.status = statusFilter;
     if (search.trim().length > 0) params.search = search;
-    if (user?.role === "admin" && assignedTo !== "all") params.assignedTo = assignedTo;
     if (selectedTag !== "all") params.tag = selectedTag;
-    if (user?.role === "agent") params.assignedTo = user.displayName;
 
     try {
-      await fetch("/api/leads/assign-meta-leads", { method: "POST" });
-
       const res = await getLeads({ params });
       let regularLeads = Array.isArray(res.data) ? addDuplicateInfo(res.data) : [];
-      let whatsappLeadsNormalized = [];
+      let whatsappLeadsNormalized: Lead[] = [];
 
       try {
         const whatsappLeads = await getWhatsappLeads();
         if (Array.isArray(whatsappLeads)) {
           whatsappLeadsNormalized = whatsappLeads.map((contact) => ({
-            id: contact.id, name: contact.name, contact: contact.whatsappId, email: "",
-            source: "WhatsApp", status: "new", assignedTo: "", followUp: "",
-            tags: [], customFields: {}, metaData: { lastMessage: contact.lastMessage, createdAt: contact.createdAt },
+            id: contact.id,
+            name: contact.name,
+            contact: contact.whatsappId,
+            email: "",
+            source: "WhatsApp",
+            status: "new",
+            assignedTo: "",
+            followUp: "",
+            tags: [],
+            customFields: {},
+            metaData: { lastMessage: contact.lastMessage, createdAt: contact.createdAt },
             createdAt: contact.createdAt,
           }));
         }
       } catch (waErr) {}
 
       let mergedLeads = [...regularLeads, ...whatsappLeadsNormalized];
-      if (user?.role === "agent") {
-        mergedLeads = mergedLeads.filter(
-          (l) => l.assignedTo && l.assignedTo === user.displayName
-        );
-      }
-      // === Sort newest-to-oldest by createdAt ===
+
+      // Sort newest-to-oldest by createdAt
       mergedLeads = mergedLeads.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA; // Newest first
+        return dateB - dateA;
       });
+
       setLeads(addDuplicateInfo(mergedLeads));
       setError(null);
     } catch {
@@ -185,51 +305,69 @@ export default function Leads() {
     }
   }
 
-  // ---- MODIFIED handleAddLead: block duplicate add ----
+  // Fixed: only block duplicate if contact is non-empty and already exists
   function handleAddLead(lead: Omit<Lead, "id">) {
-    // Check duplicate (ignoring case and whitespace)
-    const isDuplicate = leads.some(existing => {
-      const nameMatch = (existing.name || "").trim().toLowerCase() === (lead.name || "").trim().toLowerCase();
-      const contactMatch = (existing.contact || "").trim().toLowerCase() === (lead.contact || "").trim().toLowerCase();
-      return nameMatch || contactMatch;
-    });
-    if (isDuplicate) {
-      setError("Duplicate lead detected. Last lead came. Not adding duplicate.");
-      setShowModal(false); setQuickAdd(false);
-      return;
+    const newContact = (lead.contact || "").trim().toLowerCase();
+
+    // Only check contact-based duplicates if contact is provided
+    if (newContact !== "") {
+      const contactExists = leads.some((existing) => {
+        const existingContact = (existing.contact || "").trim().toLowerCase();
+        return existingContact !== "" && existingContact === newContact;
+      });
+      if (contactExists) {
+        setError("Duplicate lead detected: a lead with this contact number already exists.");
+        setShowModal(false);
+        setQuickAdd(false);
+        return;
+      }
     }
+
     setLoading(true);
     addLead(lead)
       .then((res) => {
         setLeads((prev) => addDuplicateInfo([res.data, ...prev]));
-        setShowModal(false); setQuickAdd(false); setError(null);
+        setShowModal(false);
+        setQuickAdd(false);
+        setError(null);
       })
       .catch((err) => setError(err?.response?.data?.error || "Failed to add lead!"))
       .finally(() => setLoading(false));
   }
 
   function handleUpdateLead(lead: Lead) {
+    // Immediately update UI so follow-up date shows right away
+    setLeads((prev) => addDuplicateInfo(prev.map((l) => (l.id === lead.id ? { ...l, ...lead } : l))));
+    setShowModal(false);
+    setFollowUpLead(null);
+
     setLoading(true);
     updateLead(lead.id, lead)
       .then((res) => {
-        setLeads((prev) => addDuplicateInfo(prev.map((l) => (l.id === lead.id ? res.data : l))));
-        setShowModal(false); setAssignLead(null); setFollowUpLead(null); setError(null);
+        // Sync again with server response to ensure accuracy
+        if (res?.data) {
+          setLeads((prev) => addDuplicateInfo(prev.map((l) => (l.id === lead.id ? { ...lead, ...res.data } : l))));
+        }
+        setError(null);
       })
       .catch((err) => setError(err?.response?.data?.error || "Failed to update lead!"))
       .finally(() => setLoading(false));
   }
-  function handleDeleteLead(id: number) {
+
+  function handleDeleteLead(id: string | number) {
     if (window.confirm("Are you sure you want to delete this lead?")) {
       setLoading(true);
-      deleteLead(id)
+      deleteLead(id as number)
         .then(() => setLeads((prev) => addDuplicateInfo(prev.filter((l) => l.id !== id))))
         .catch(() => setError("Failed to delete lead!"))
         .finally(() => setLoading(false));
     }
   }
+
   function handleBulkImportSuccess() { setShowBulkImport(false); fetchLeads(); }
   function openAddModal() { setModalLead(null); setShowModal(true); setError(null); }
   function openEditModal(lead: Lead) { setModalLead(lead); setShowModal(true); setError(null); }
+
   function openMergeModal(lead: Lead) {
     const duplicates = leads.filter((l) => {
       const validName = (l.name || "").trim() !== "" && (lead.name || "").trim() !== "";
@@ -241,8 +379,11 @@ export default function Leads() {
     if (duplicates.length === 0) { setError("No duplicates found for this lead"); return; }
     setMergeModal({ primary: lead, duplicates });
   }
+
   function handleMergeComplete() { fetchLeads(); setMergeModal({ primary: null, duplicates: [] }); setError(null); }
+
   function handleCloseLead(lead: Lead) { handleUpdateLead({ ...lead, status: "closed" }); }
+
   function copyToClipboard(text?: string) {
     if (!text) return;
     if (navigator && "clipboard" in navigator) {
@@ -261,7 +402,7 @@ export default function Leads() {
     filteredLeads = leads.filter((l) => l.duplicateInfo?.isDuplicate);
   }
   if (showWhatsappOnly) {
-    filteredLeads = filteredLeads.filter(l => l.source === "WhatsApp");
+    filteredLeads = filteredLeads.filter((l) => l.source === "WhatsApp");
   }
   const duplicateCount = leads.filter((l) => l.duplicateInfo?.isDuplicate).length;
 
@@ -288,7 +429,7 @@ export default function Leads() {
           </Button>
           <Button
             variant={showWhatsappOnly ? "default" : "outline"}
-            onClick={() => setShowWhatsappOnly(v => !v)}
+            onClick={() => setShowWhatsappOnly((v) => !v)}
             disabled={loading}
           >
             <MessageCircle className="mr-2 h-4 w-4" />
@@ -356,27 +497,12 @@ export default function Leads() {
                 ))}
               </SelectContent>
             </Select>
-            {user?.role === "admin" && (
-              <Select value={assignedTo} onValueChange={setAssignedTo} disabled={loading}>
-                <SelectTrigger className="w-full md:w-[160px] min-w-[140px]">
-                  <SelectValue placeholder="Assigned To" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {userOptions.map((userName) => (
-                    <SelectItem key={userName} value={userName}>
-                      {userName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
             <Select value={selectedTag} onValueChange={setSelectedTag} disabled={loading}>
               <SelectTrigger className="w-full md:w-[130px] min-w-[120px]">
                 <SelectValue placeholder="Tag" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All Tags</SelectItem>
                 {tagOptions.map((tag) => (
                   <SelectItem key={tag} value={tag}>
                     {tag}
@@ -408,7 +534,7 @@ export default function Leads() {
             <div className="text-center py-6 text-muted-foreground">No leads found</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[730px]">
+              <table className="w-full text-sm min-w-[650px]">
                 <thead>
                   <tr className="border-b whitespace-nowrap">
                     <th className="text-left py-2 px-2 font-medium">Name</th>
@@ -416,12 +542,10 @@ export default function Leads() {
                     <th className="text-left py-2 px-2 font-medium">Email</th>
                     <th className="text-left py-2 px-2 font-medium">Source</th>
                     <th className="text-left py-2 px-2 font-medium">Status</th>
-                    <th className="text-left py-2 px-2 font-medium">Assigned</th>
                     <th className="text-left py-2 px-2 font-medium">Follow-up</th>
                     <th className="text-left py-2 px-2 font-medium">Created</th>
                     <th className="text-left py-2 px-2 font-medium">Last Msg</th>
                     <th className="text-left py-2 px-2 font-medium">Dup</th>
-                    <th className="text-left py-2 px-2 font-medium">Tags</th>
                     <th className="text-left py-2 px-2 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -461,16 +585,15 @@ export default function Leads() {
                           {lead.status ? lead.status.replace("-", " ") : "-"}
                         </Badge>
                       </td>
-                      <td className="py-2 px-2 text-xs">{lead.assignedTo || "-"}</td>
                       <td className="py-2 px-2 text-xs">
                         <span className={isOverdue(lead.followUp) ? "text-red-600 font-bold" : ""}>
-                          {lead.followUp || "-"}
+                          {formatFollowUp(lead.followUp)}
                         </span>
                         {isOverdue(lead.followUp) && (
                           <AlertCircle
                             className="inline ml-1 text-red-600"
                             size={16}
-                            title="Follow-up overdue"
+                            aria-label="Follow-up overdue"
                           />
                         )}
                       </td>
@@ -498,18 +621,6 @@ export default function Leads() {
                           >
                             <span className="font-semibold text-yellow-700">{lead.duplicateInfo.duplicateCount}</span>
                           </Button>
-                        ) : <span>-</span>}
-                      </td>
-                      <td className="py-2 px-2 text-xs max-w-[90px] truncate">
-                        {lead.tags && Array.isArray(lead.tags) && lead.tags.length > 0 ? (
-                          lead.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-block bg-blue-100 text-blue-700 rounded px-1 mr-0.5 text-xs"
-                            >
-                              {tag}
-                            </span>
-                          ))
                         ) : (
                           <span>-</span>
                         )}
@@ -527,9 +638,6 @@ export default function Leads() {
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => copyToClipboard(lead.contact)} disabled={loading} title="Copy Contact" className="p-1">
                             <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => setAssignLead(lead)} disabled={loading} title="Assign" className="p-1">
-                            <Users className="h-4 w-4" />
                           </Button>
                           <Button size="icon" variant="ghost" onClick={() => setFollowUpLead(lead)} disabled={loading} title="Follow-Up" className="p-1">
                             <Calendar className="h-4 w-4" />
@@ -567,6 +675,7 @@ export default function Leads() {
           onSubmit={modalLead ? handleUpdateLead : handleAddLead}
           existingLead={modalLead}
           error={error}
+          existingLeads={leads}
         />
       )}
       {quickAdd && (
@@ -575,21 +684,18 @@ export default function Leads() {
           onSubmit={handleAddLead}
           existingLead={null}
           error={error}
+          existingLeads={leads}
         />
       )}
       {showBulkImport && (
         <BulkImportModal onClose={() => setShowBulkImport(false)} onImport={handleBulkImportSuccess} />
       )}
-      {assignLead && (
-        <AssignLeadModal
-          lead={assignLead}
-          onClose={() => setAssignLead(null)}
-          onAssign={handleUpdateLead}
-          users={userOptions}
-        />
-      )}
       {followUpLead && (
-        <FollowupModal lead={followUpLead} onClose={() => setFollowUpLead(null)} onSchedule={handleUpdateLead} />
+        <FollowUpInlineModal
+          lead={followUpLead}
+          onClose={() => setFollowUpLead(null)}
+          onSchedule={handleUpdateLead}
+        />
       )}
       {waModalLead && <WhatsAppTemplateModal lead={waModalLead} onClose={() => setWAModalLead(null)} />}
       {duplicateAlertLead && <DuplicateAlert lead={duplicateAlertLead} onClose={() => setDuplicateAlertLead(null)} />}

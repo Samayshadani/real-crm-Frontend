@@ -17,10 +17,10 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Leads", url: "/leads", icon: Users },
-  { title: "Projects", url: "/projects", icon: Building2 },
-  { title: "Payments", url: "/payments", icon: CreditCard },
-  { title: "Employees", url: "/employees", icon: UserCircle },
-  { title: "WhatsApp", url: "/whatsapp", icon: MessageSquare },
+  // { title: "Projects", url: "/projects", icon: Building2 },
+  // { title: "Payments", url: "/payments", icon: CreditCard },
+  // { title: "Employees", url: "/employees", icon: UserCircle },
+  // { title: "WhatsApp", url: "/whatsapp", icon: MessageSquare },
 ];
 
 export function AppSidebar() {
