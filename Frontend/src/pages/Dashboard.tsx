@@ -1,9 +1,5 @@
 
 
-
-
-
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +17,11 @@ const COLORS = [
   "#3b82f6", "#6366f1", "#f59e0b", "#eab308", "#22c55e", "#ef4444",
 ];
 
-const STATUS_ORDER = ["new", "contacted", "site-visit", "negotiation", "converted", "lost"];
+const STATUS_ORDER = ["new", "contacted", "negotiation", "converted", "lost"];
 
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-100 text-blue-800",
   contacted: "bg-indigo-100 text-indigo-800",
-  "site-visit": "bg-amber-100 text-amber-800",
   negotiation: "bg-yellow-100 text-yellow-800",
   converted: "bg-green-100 text-green-800",
   lost: "bg-red-100 text-red-800",
@@ -92,7 +87,7 @@ export default function Dashboard() {
 
   // Funnel data
   const funnelData = STATUS_ORDER.map((status) => ({
-    name: status === "site-visit" ? "Site Visit" : status.charAt(0).toUpperCase() + status.slice(1),
+    name: status.charAt(0).toUpperCase() + status.slice(1),
     value: leads.filter((l) => l.status === status).length,
   }));
 
@@ -130,9 +125,6 @@ export default function Dashboard() {
       count: leads.filter((l) => l.createdAt && l.createdAt.slice(0, 10) === dateStr).length,
     };
   });
-
-  // Unassigned leads
-  // const unassignedLeads = leads.filter((l) => !l.assignedTo || l.assignedTo.trim() === "");
 
   // Duplicate detection
   const duplicateCount = leads.filter((lead) =>
@@ -283,8 +275,6 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground">{todayFollowUps.length} due today</p>
           </CardContent>
         </Card>
-
-      
       </div>
 
       {/* ── Charts Row ────────────────────────────────────────── */}
