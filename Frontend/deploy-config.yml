@@ -1,11 +1,11 @@
 # Application settings
-app_name: vasify-crm-frontend
+app_name: barphani-crm-frontend
 app_port: 8004
 health_check_path: "/"
 env: production
 
 # Domain configuration
-domain: crm-new.vasifytech.com
+domain: barphani.vasifytech.com
 
 # Target machine (must match inventory.yml)
 target_host: production

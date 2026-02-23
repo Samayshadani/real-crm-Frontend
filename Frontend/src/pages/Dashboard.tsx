@@ -1,3 +1,9 @@
+
+
+
+
+
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,7 +132,7 @@ export default function Dashboard() {
   });
 
   // Unassigned leads
-  const unassignedLeads = leads.filter((l) => !l.assignedTo || l.assignedTo.trim() === "");
+  // const unassignedLeads = leads.filter((l) => !l.assignedTo || l.assignedTo.trim() === "");
 
   // Duplicate detection
   const duplicateCount = leads.filter((lead) =>
@@ -278,16 +284,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Unassigned</CardTitle>
-            <XCircle className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">{unassignedLeads.length}</div>
-            <p className="text-xs text-muted-foreground">{lostLeads.length} lost leads</p>
-          </CardContent>
-        </Card>
+      
       </div>
 
       {/* ── Charts Row ────────────────────────────────────────── */}

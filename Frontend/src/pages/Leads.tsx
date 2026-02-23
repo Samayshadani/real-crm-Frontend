@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,6 @@ import WhatsAppTemplateModal from "@/components/WhatsAppTemplateModal";
 import DuplicateAlert from "@/components/DuplicateAlert";
 import MergeDuplicatesModal from "@/components/MergeDuplicatesModal";
 import BulkImportModal from "@/components/BulkImportModal";
-import FollowupModal from "@/components/FollowupModal";
 import { useUser } from "../lib/UserContext";
 
 const statusOptions = [
@@ -59,12 +59,48 @@ export type Lead = {
   createdAt?: string;
 };
 
-function isOverdue(followUp?: string) {
-  if (!followUp) return false;
+function formatFollowUp(followUp?: string) {
+  if (!followUp || followUp.trim() === "") return "-";
   try {
-    const fDate = new Date(followUp);
-    const today = new Date(new Date().toISOString().slice(0, 10));
-    return fDate < today;
+    // If it's just a date string like "2025-11-19" (no time part)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(followUp.trim())) {
+      const [year, month, day] = followUp.trim().split("-").map(Number);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${String(day).padStart(2,"0")} ${months[month - 1]} ${year}`;
+    }
+    // If it has a time part like "2025-11-19T09:00:00"
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(followUp.trim())) {
+      const [datePart, timePart] = followUp.trim().split("T");
+      const [year, month, day] = datePart.split("-").map(Number);
+      const [hour, minute] = timePart.split(":").map(Number);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const h12 = hour % 12 === 0 ? 12 : hour % 12;
+      const ampm = hour < 12 ? "am" : "pm";
+      return `${String(day).padStart(2,"0")} ${months[month - 1]} ${year}, ${String(h12).padStart(2,"0")}:${String(minute).padStart(2,"0")} ${ampm}`;
+    }
+    // Fallback: try native Date parse
+    const d = new Date(followUp);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString("en-IN", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+      });
+    }
+    return followUp;
+  } catch {
+    return followUp;
+  }
+}
+
+function isOverdue(followUp?: string) {
+  if (!followUp || followUp.trim() === "") return false;
+  try {
+    // For date-only strings, compare date parts directly to avoid timezone issues
+    if (/^\d{4}-\d{2}-\d{2}$/.test(followUp.trim())) {
+      const today = new Date().toISOString().slice(0, 10);
+      return followUp.trim() < today;
+    }
+    return new Date(followUp) < new Date();
   } catch {
     return false;
   }
@@ -107,6 +143,94 @@ function addDuplicateInfo(leadsData: any): Lead[] {
       },
     };
   });
+}
+
+// Inline Follow-up Modal with date + time
+function FollowUpInlineModal({
+  lead,
+  onClose,
+  onSchedule,
+}: {
+  lead: Lead;
+  onClose: () => void;
+  onSchedule: (lead: Lead) => void;
+}) {
+  // Parse existing followUp into date and time parts
+  const existingDate = lead.followUp ? lead.followUp.slice(0, 10) : "";
+  const existingTime = lead.followUp && lead.followUp.length > 10
+    ? new Date(lead.followUp).toTimeString().slice(0, 5)
+    : "09:00";
+
+  const [date, setDate] = useState(existingDate);
+  const [time, setTime] = useState(existingTime);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSave() {
+    if (!date) { setError("Please select a date."); return; }
+    // Combine date + time into ISO-like string
+    const combined = `${date}T${time}:00`;
+    onSchedule({ ...lead, followUp: combined });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-[340px]">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-blue-600" />
+          Schedule Follow-up
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Lead: <span className="font-medium text-gray-800">{lead.name}</span>
+        </p>
+
+        {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+
+        <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Date *</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => { setDate(e.target.value); setError(null); }}
+          className="border rounded px-3 py-2 w-full text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          min={new Date().toISOString().slice(0, 10)}
+        />
+
+        <label className="block text-xs font-medium text-gray-600 mb-1">Follow-up Time *</label>
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className="border rounded px-3 py-2 w-full text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <p className="text-xs text-muted-foreground mb-5">Select the time you want to follow up with this lead.</p>
+
+        {date && (
+          <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-4 text-xs text-blue-700">
+            📅 Scheduled for: <span className="font-semibold">
+              {new Date(`${date}T${time}:00`).toLocaleString("en-IN", {
+                day: "2-digit", month: "short", year: "numeric",
+                hour: "2-digit", minute: "2-digit", hour12: true,
+              })}
+            </span>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition"
+          >
+            Save Follow-up
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded text-sm transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function Leads() {
@@ -212,12 +336,18 @@ export default function Leads() {
   }
 
   function handleUpdateLead(lead: Lead) {
+    // Immediately update UI so follow-up date shows right away
+    setLeads((prev) => addDuplicateInfo(prev.map((l) => (l.id === lead.id ? { ...l, ...lead } : l))));
+    setShowModal(false);
+    setFollowUpLead(null);
+
     setLoading(true);
     updateLead(lead.id, lead)
       .then((res) => {
-        setLeads((prev) => addDuplicateInfo(prev.map((l) => (l.id === lead.id ? res.data : l))));
-        setShowModal(false);
-        setFollowUpLead(null);
+        // Sync again with server response to ensure accuracy
+        if (res?.data) {
+          setLeads((prev) => addDuplicateInfo(prev.map((l) => (l.id === lead.id ? { ...lead, ...res.data } : l))));
+        }
         setError(null);
       })
       .catch((err) => setError(err?.response?.data?.error || "Failed to update lead!"))
@@ -416,7 +546,6 @@ export default function Leads() {
                     <th className="text-left py-2 px-2 font-medium">Created</th>
                     <th className="text-left py-2 px-2 font-medium">Last Msg</th>
                     <th className="text-left py-2 px-2 font-medium">Dup</th>
-                    <th className="text-left py-2 px-2 font-medium">Tags</th>
                     <th className="text-left py-2 px-2 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -458,7 +587,7 @@ export default function Leads() {
                       </td>
                       <td className="py-2 px-2 text-xs">
                         <span className={isOverdue(lead.followUp) ? "text-red-600 font-bold" : ""}>
-                          {lead.followUp || "-"}
+                          {formatFollowUp(lead.followUp)}
                         </span>
                         {isOverdue(lead.followUp) && (
                           <AlertCircle
@@ -492,20 +621,6 @@ export default function Leads() {
                           >
                             <span className="font-semibold text-yellow-700">{lead.duplicateInfo.duplicateCount}</span>
                           </Button>
-                        ) : (
-                          <span>-</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-xs max-w-[90px] truncate">
-                        {lead.tags && Array.isArray(lead.tags) && lead.tags.length > 0 ? (
-                          lead.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-block bg-blue-100 text-blue-700 rounded px-1 mr-0.5 text-xs"
-                            >
-                              {tag}
-                            </span>
-                          ))
                         ) : (
                           <span>-</span>
                         )}
@@ -576,7 +691,11 @@ export default function Leads() {
         <BulkImportModal onClose={() => setShowBulkImport(false)} onImport={handleBulkImportSuccess} />
       )}
       {followUpLead && (
-        <FollowupModal lead={followUpLead} onClose={() => setFollowUpLead(null)} onSchedule={handleUpdateLead} />
+        <FollowUpInlineModal
+          lead={followUpLead}
+          onClose={() => setFollowUpLead(null)}
+          onSchedule={handleUpdateLead}
+        />
       )}
       {waModalLead && <WhatsAppTemplateModal lead={waModalLead} onClose={() => setWAModalLead(null)} />}
       {duplicateAlertLead && <DuplicateAlert lead={duplicateAlertLead} onClose={() => setDuplicateAlertLead(null)} />}
