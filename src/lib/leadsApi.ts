@@ -1,18 +1,22 @@
 import axios from "axios";
 
 // Auto-detect environment (true in dev/localhost)
-const isLocal = import.meta.env.DEV || 
-                process.env.NODE_ENV === 'development' || 
-                window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1';
+// const isLocal = import.meta.env.DEV || 
+//                 process.env.NODE_ENV === 'development' || 
+//                 window.location.hostname === 'localhost' ||
+//                 window.location.hostname === '127.0.0.1';
 
-const API_BASE = isLocal 
-  ? "http://localhost:4000/api/leads"
-  : "https://barphani-backend.vasifytech.com/api/leads";
+// const API_BASE = isLocal 
+//   ? "http://localhost:4000/api/leads"
+//   : "https://barphani-backend.vasifytech.com/api/leads";
 
-const CONTACTS_BASE = isLocal 
-  ? "http://localhost:4000/api/contacts"
-  : "https://barphani-backend.vasifytech.com/api/contacts";
+// const CONTACTS_BASE = isLocal 
+//   ? "http://localhost:4000/api/contacts"
+//   : "https://barphani-backend.vasifytech.com/api/contacts";
+
+
+const  API_BASE = "https://barphani-backend.vasifytech.com/api/leads";
+const  CONTACTS_BASE = "https://barphani-backend.vasifytech.com/api/contacts";
 
 console.log(`🌐 Using API_BASE: ${API_BASE}`);  // Debug: check browser console
 
