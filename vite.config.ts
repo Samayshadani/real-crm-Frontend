@@ -3,15 +3,13 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+ // "proxy":   "http://localhost:4000",
 // [https://vitejs.dev/config/](https://vitejs.dev/config/)
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
-    proxy: {
-      // PROXY ALL API REQUESTS TO BACKEND
-      "/api": "http://localhost:4000",
-    },
+    port: 8010,
+    allowedHosts: ['barphani.vasifytech.com', 'www.barphani.vasifytech.com', 'barphani.vasifytech']
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
